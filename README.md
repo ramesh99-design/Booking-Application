@@ -5,8 +5,6 @@ No backend or database: data is kept in the browser's localStorage.
 
 **Live demo:** https://book1ng-app.netlify.app/
 
-![Booking Application screenshot](screenshot.png)
-
 ## Features
 - Registration with first, middle and last name combined into one full name
 - Country → State → District cascading dropdowns (India, all states and UTs)
