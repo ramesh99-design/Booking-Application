@@ -1,19 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import Toast from "./Components/Toast.jsx";
 import RegistrationForm from "./Components/RegistrationForm";
 import PassengerGrid from "./Components/PassengerGrid";
 import DetailsModal from "./Components/DetailsModal";
 import { useLocalStorage } from "./Utils/LocalStorage.js";
-
-function summarize(r) {
-  return {
-    ...r,
-    files: {
-      photo: r.files.photo.name,
-      aadhaarPdf: r.files.aadhaarPdf.name,
-      idPdf: r.files.idPdf.name,
-    },
-  };
-}
 
 export default function App() {
   const [passengers, setPassengers, saveError] = useLocalStorage(
@@ -22,8 +12,15 @@ export default function App() {
   );
   const [editing, setEditing] = useState(null);
   const [viewing, setViewing] = useState(null);
-  const [result, setResult] = useState(null);
   const [formKey, setFormKey] = useState(0);
+  const [toast, setToast] = useState(null);
+  const timer = useRef(null);
+
+  function showToast(message, type = "success") {
+    clearTimeout(timer.current); // a new toast replaces the old one
+    setToast({ message, type, id: Date.now() });
+    timer.current = setTimeout(() => setToast(null), 3000);
+  }
 
   function handleSave(record) {
     const exists = passengers.some((p) => p.id === record.id);
@@ -32,16 +29,14 @@ export default function App() {
         ? prev.map((p) => (p.id === record.id ? record : p))
         : [record, ...prev],
     );
-    const summary = {
-      action: exists ? "Updated" : "Registered",
-      data: summarize(record),
-    };
-    setResult(summary);
-    console.log("Form submitted:", summary);
+    showToast(
+      exists
+        ? `Passenger updated: ${record.fullName}`
+        : `Passenger added: ${record.fullName}`,
+    );
     setEditing(null);
     setFormKey((k) => k + 1);
   }
-
   function handleEdit(p) {
     setEditing(p);
     setFormKey((k) => k + 1);
@@ -58,6 +53,7 @@ export default function App() {
     if (!window.confirm(`Delete ${p.fullName}?`)) return;
     setPassengers((prev) => prev.filter((x) => x.id !== id));
     if (editing?.id === id) handleCancelEdit();
+    showToast(`Passenger deleted: ${p.fullName}`, "danger");
   }
   function handleDeleteAll() {
     if (passengers.length === 0) return;
@@ -67,11 +63,9 @@ export default function App() {
       )
     )
       return;
-    passengers.forEach((p) =>
-      Object.values(p.files).forEach((f) => f && URL.revokeObjectURL(f.url)),
-    );
     setPassengers([]);
-    handleCancelEdit(); 
+    handleCancelEdit();
+    showToast("All passengers deleted", "danger");
   }
 
   return (
@@ -95,17 +89,6 @@ export default function App() {
         onCancel={handleCancelEdit}
       />
 
-      {result && (
-        <div className="mx-auto mt-6 max-w-3xl rounded-xl bg-white p-6 shadow">
-          <h2 className="mb-2 text-lg font-semibold text-slate-800">
-            Last submission: {result.action}
-          </h2>
-          <pre className="overflow-x-auto rounded-lg bg-slate-900 p-4 text-xs text-green-300">
-            {JSON.stringify(result.data, null, 2)}
-          </pre>
-        </div>
-      )}
-
       <PassengerGrid
         passengers={passengers}
         onView={setViewing}
@@ -121,6 +104,7 @@ export default function App() {
           {saveError}
         </div>
       )}
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 }
